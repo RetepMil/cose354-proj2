@@ -1,5 +1,3 @@
-import numpy as np
-
 Sbox = (
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
     0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -20,19 +18,26 @@ Sbox = (
 )
 
 def mix_column(x):
-    m = np.array([
+    mulby = [
         [2, 3, 1, 1],
         [1, 2, 3, 1],
         [1, 1, 2, 3],
-        [3, 1, 1, 2]
-    ])
-    x_t = np.array([
-        x[0],
-        x[1],
-        x[2],
-        x[3]
-    ])
-    return m @ x_t
+        [3, 1, 1, 2],
+    ]
+    result = []
+    for by in mulby:
+        xor_items = []
+        for mul_type, num in zip(by, x):
+            if mul_type == 1:
+                xor_items.append(num)
+            elif mul_type == 2:
+                xor_items.append(num << 1)
+            else:
+                xor_items.append(num << 1 ^ num)
+            if xor_items[-1] > 255:
+                xor_items[-1] = (xor_items[-1] - 256) ^ 0x1B
+        result.append(xor_items[0] ^ xor_items[1] ^ xor_items[2] ^ xor_items[3])
+    return result
 
 def f(rb, x):
     q = []
@@ -47,6 +52,7 @@ def round1(rb, x):
     for i in range(4):
         y.append(_f[i] ^ x[4 + i])
     y.extend(x[8:])
+    y.extend(x[:4])
     return y
 
 def round2(rb, x):
@@ -56,6 +62,7 @@ def round2(rb, x):
     for i in range(4):
         y.append(_f[i] ^ x[8 + i])
     y.extend(x[12:])
+    y.extend(x[:4])
     return y
 
 def h(m, t):
@@ -64,16 +71,17 @@ def h(m, t):
     
     a = m[:16]
     b = m[16:]
+    
     for i in range(t - 1):
         rb = b[:4]
         a = round1(rb, a)
         b = round1([i, i + 1, i + 2, i + 3], b)
-    rb = b[:4]
-    a = round2(rb, a)
+    a = round2(b[:4], a)
     o = []
     for i in range(16):
         o.append(a[i] ^ a0[i] ^ b0[i])
     return o
 
-# print(mix_column([1, 2, 3, 4]))
-# print(f([1, 2, 3, 4], [4, 3, 2, 1]))
+# message = [0x87, 0xF2, 0x4D, 0x97, 0x6E, 0x4C, 0x90, 0xEC, 0x46, 0xE7, 0x4A, 0xC3, 0xA6, 0x8C, 0xD8, 0x95, 0x47, 0x40, 0xA3, 0x4C, 0x37, 0xD4, 0x70, 0x9F, 0x94, 0xE4, 0x3A, 0x42, 0xED, 0xA5, 0xA6, 0xBC]
+# t = 5
+# print(list(map(hex, h(message, t))))
